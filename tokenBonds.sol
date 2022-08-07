@@ -872,16 +872,31 @@ contract Pay0utStaking is Ownable {
     }
 
 
-    address public payoutToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
-    address public stakedPayoutToken = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
-    address public bondToken = 0x0000000000000000000000000000000000000000;
-    address public burnAddress = 0x0000000000000000000000000000000000000000;
-    address public treasuryAddress = 0x0000000000000000000000000000000000000000;
+    address public payoutToken;
+    address public stakedPayoutToken;
+    address public bondToken;
+    address public treasuryAddress;
     uint256 public ratePerPayout = 0;
     uint256 public maxTokens = 0;
     uint256 public currentRate;
     uint256 public bondLength = 0; // in seconds
     bool public bondActive = false;
+
+    constructor (
+        address _payoutToken,
+        address _stakedPayoutToken,
+        address _treasuryContract,
+        address _bondToken
+    ) {
+        require(_payoutToken != address(0), "IA0");
+        require(_stakedPayoutToken != address(0), "IA0");
+        require(_treasuryContract != address(0), "IA0");
+        require(_bondToken != address(0), "IA0");
+        payoutToken = _payoutToken;
+        stakedPayoutToken = _stakedPayoutToken;
+        treasuryAddress = _treasuryContract;
+        bondToken = _bondToken;
+    }
 
     event Bond(address indexed user, uint256 amountPAYOUT, uint256 amountTOKEN, uint256 rate);
     event FinishBond(address indexed user, uint256 amountPAYOUT);

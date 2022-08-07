@@ -912,20 +912,27 @@ contract Pay0utTreasury is Ownable, VaultOwned, BondOwned {
     mapping(address => uint256) public contributions;
     mapping(address => uint256) public startStake;
     
-    function addToWhiteList(address user) public onlyOwner() {
-        whiteList[user] = true;
-    }
-
-
-    address public payoutToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
-    address public stakedPayoutToken = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
-    address public burnAddress = 0x0000000000000000000000000000000000000000;
-    address public stakingContract = 0x0000000000000000000000000000000000000000;
-    address public distributorContract = 0x0000000000000000000000000000000000000000;
+    address public payoutToken;
+    address public stakedPayoutToken;
+    address public stakingContract;
+    address public distributorContract;
     bool public whitelistActive = true;
     bool public stakingActive = false;
     bool public withdrawalsActive = false;
     bool public mintingActive = false;
+
+    constructor (
+        address _payoutToken,
+        address _stakedPayoutToken,
+        address _stakingContract
+    ) {
+        require(_payoutToken != address(0), "IA0");
+        require(_stakedPayoutToken != address(0), "IA0");
+        require(_stakingContract != address(0), "IA0");
+        payoutToken = _payoutToken;
+        stakedPayoutToken = _stakedPayoutToken;
+        stakingContract = _stakingContract;
+    }
 
     function bondPayout(uint256 deposit, address token, uint256 rate) public onlyBonds() {  //deposit tokens from bond to treasury and mint rewards (USE THIS FOR WETH)
         if(mintingActive) {

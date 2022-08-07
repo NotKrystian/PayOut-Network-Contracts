@@ -460,7 +460,10 @@ contract PayOutERC20Token is ERC20Permit, VaultOwned, DistributorOwned, StakingO
 
     using LowGasSafeMath for uint256;
 
-    constructor() ERC20("Pay0ut", "PAY0", 18) {
+    constructor(
+      address vault
+    ) ERC20("Pay0ut", "PAY0", 18) {
+        setVault(vault);
     }
 
     function mint(address account_, uint256 amount_) external onlyVault() {

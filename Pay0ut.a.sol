@@ -460,7 +460,10 @@ contract StakedPayoutERC20Token is ERC20Permit, VaultOwned, DistributorOwned, St
 
     using LowGasSafeMath for uint256;
 
-    constructor() ERC20("Staked Pay0ut", "PAY0.a", 18) {
+    constructor(
+      address vault
+    ) ERC20("Staked Pay0ut", "PAY0.a", 18) {
+      setVault(vault);
     }
 
     function mint(address account_, uint256 amount_) external onlyVault() {

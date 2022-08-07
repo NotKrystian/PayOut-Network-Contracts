@@ -863,17 +863,21 @@ contract Pay0utStaking is Ownable {
     mapping(address => uint256) public contributions;
     mapping(address => uint256) public startStake;
     
-    function addToWhiteList(address user) public onlyOwner() {
-        whiteList[user] = true;
-    }
-
-
-    address public payoutToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
-    address public stakedPayoutToken = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
-    address public burnAddress = 0x0000000000000000000000000000000000000000;
-    address public treasuryAddress = 0x0000000000000000000000000000000000000000;
+    address public payoutToken;
+    address public stakedPayoutToken;
+    address public treasuryAddress;
     uint256 public rewardIndex = 0;
     bool public withdrawalsActive = false;
+
+    constructor (
+        address _payoutToken,
+        address _stakedPayoutToken
+    ) {
+        require(_payoutToken != address(0), "IA0");
+        require(_stakedPayoutToken != address(0), "IA0");
+        payoutToken = _payoutToken;
+        stakedPayoutToken = _stakedPayoutToken;
+    }
 
     event Stake(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
