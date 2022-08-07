@@ -900,7 +900,7 @@ contract Pay0utStaking is Ownable {
     event FinishBond(address indexed user, uint256 amountPAYOUT);
     event BondStakePayout(address indexed bond, address indexed user, uint256 amount);
 
-    function bondPayoutToken(uint256 deposit) public {  //deposit PayOut Token for staking and log timestamp of transaction
+    function bondPayoutToken(uint256 deposit) public {  //deposit PayOut Token for staking and log timestamp of transaction using ETH
         if(ITREASURY20(treasuryAddress).mintingStatus()) {
             require(deposit < maxTokens, "Deposit exceeds maximum allowed amount in bonding pool");
             require(deposit < (maxTokens - tokensBonded[address(this)]), "Deposit exceeds maximum allowed amount in bonding pool");
@@ -928,7 +928,7 @@ contract Pay0utStaking is Ownable {
             require(IERC20(payoutToken).transfer(msg.sender, userProfile[msg.sender]), "Failed to transfer tokens to contract");
             userProfile[msg.sender] = 0;
             userProfileTime[msg.sender] = 0;
-            emit FinishBond(msg.sender, tokensBonded[msg.sender]);
+            emit FinishBond(msg.sender, tokensBonded[msg.sender]); 
         }
     }
 
