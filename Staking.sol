@@ -557,6 +557,12 @@ interface IMINT20 is IERC20Mintable, IERC20 {
     function burn( uint256 amount ) external;
 }
 
+interface ITREASURY20 is IERC20 {
+    function mintingStatus() external view returns (bool);
+
+    function checkBondAddress(address account) external view returns (bool);
+}
+
 interface IERC2612Permit {
 
     function permit(
@@ -865,29 +871,33 @@ contract Pay0utStaking is Ownable {
     address public payoutToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
     address public stakedPayoutToken = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
     address public burnAddress = 0x0000000000000000000000000000000000000000;
+    address public treasuryAddress = 0x0000000000000000000000000000000000000000;
     uint256 public rewardIndex = 0;
-    bool public whitelistActive = true;
-    bool public stakingActive = false;
     bool public withdrawalsActive = false;
 
+    event Stake(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+    event BondStakePayout(address indexed bond, address indexed user, uint256 amount);
+
     function stakePayOut(uint256 deposit) public {  //deposit PayOut Token for staking and log timestamp of transaction
-        if(stakingActive) {
-                //uint256 balances = address(this).balance;
-                //equire(balances < maxContractLimit, "Whitelist Filled");
-                //require(balances.add(deposit) < maxContractLimit, "Deposit Over Whitelist Max - Check Contract Balance if its below limit");
-                //percentFilled = ((balances.div(maxContractLimit)).mul(100));
-                //uint256 _amount = deposit.mul(ratePerAvax);
-                require(deposit > 0, "You need to sell at least some tokens");
-                uint256 allowance = IERC20(payoutToken).allowance(msg.sender, address(this));
-                require(allowance >= deposit, "Check the token allowance");
-                IERC20(payoutToken).transferFrom(msg.sender, address(this), deposit);
-                IMINT20(payoutToken).burn(deposit);
-                IMINT20( stakedPayoutToken ).stakeMint( msg.sender, deposit );
-                contributions[msg.sender] = deposit;
-                startStake[msg.sender] = block.timestamp;
+        if(startStake[msg.sender] == 0) {
+            if(ITREASURY20(treasuryAddress).mintingStatus()) {
+                    require(deposit > 0, "You need to sell at least some tokens");
+                    uint256 allowance = IERC20(payoutToken).allowance(msg.sender, address(this));
+                    require(allowance >= deposit, "Check the token allowance");
+                    IERC20(payoutToken).transferFrom(msg.sender, address(this), deposit);
+                    IMINT20(payoutToken).burn(deposit);
+                    IMINT20( stakedPayoutToken ).stakeMint( msg.sender, deposit );
+                    contributions[msg.sender] = deposit;
+                    startStake[msg.sender] = block.timestamp;
+                    emit Stake(msg.sender, deposit);
+            }
+            else {
+                revert("Minting not active from treasury");
+            }
         }
         else {
-            revert("Staking not active");
+            revert("You have already staked. Unstake your current position before staking again");
         }
     }
 
@@ -903,7 +913,7 @@ contract Pay0utStaking is Ownable {
         if(withdrawalsActive) {
             amount = contributions[msg.sender];
             uint256 transfertoken = amount;
-            require(IERC20( stakedPayoutToken ).transferFrom( msg.sender, address(this), transfertoken ), "Transfer Failed (No Auth)");
+            require(IERC20( stakedPayoutToken ).transferFrom( msg.sender, address(this), transfertoken ), "Transfer Failed (No Auth) / Staked balance has been altered");
             IMINT20( stakedPayoutToken ).burn( transfertoken );
             IMINT20(payoutToken).stakeMint( msg.sender, transfertoken );
             contributions[msg.sender] = contributions[msg.sender].sub(amount);
@@ -912,20 +922,26 @@ contract Pay0utStaking is Ownable {
             rewardPlus = TotalStake.mul(rewardIndex);
             rewardFinal = rewardPlus.div(10e10);
             IMINT20( payoutToken ).stakeMint( msg.sender, rewardFinal );
+            emit Withdraw(msg.sender, rewardFinal);
+            startStake[msg.sender] = 0;
         }
         else {
             revert("Withdrawals disabled");
         }
     }
 
-
-
-    function toggleStaking(bool value) public onlyOwner() {
-        stakingActive = value;
-    }
-
-    function toggleWhitelist(bool value) public onlyOwner() {
-        whitelistActive = value;
+    function addBondContribution(uint256 deposit, address userAddress) public { //Bonds that were staking for the user in the holding period will add the total to the user's contribution and payout their owed tokens to start the next period of staking with higher earnings
+        require(ITREASURY20(treasuryAddress).checkBondAddress(msg.sender), "Transaction sender is not a bond contract"); //check if the sender is a bond contract
+        amount = contributions[msg.sender];
+        currentBlockstamp = block.timestamp;
+        TotalStake = currentBlockstamp.sub(startStake[msg.sender]);
+        rewardPlus = TotalStake.mul(rewardIndex);
+        rewardFinal = rewardPlus.div(10e10); 
+        IMINT20( payoutToken ).stakeMint( msg.sender, rewardFinal ); // Payout the user's owed tokens from staking
+        emit BondStakePayout(msg.sender, userAddress, rewardFinal); 
+        startStake[msg.sender] = currentBlockstamp; // resets stake time
+        IMINT20( stakedPayoutToken ).stakeMint( userAddress, deposit ); //Mints staked tokens to user's wallet
+        contributions[userAddress].add(deposit); // Adds bond's staked tokens to users contribution
     }
 
     function toggleWithdrawals(bool value) public onlyOwner() {
@@ -934,6 +950,10 @@ contract Pay0utStaking is Ownable {
 
     function setRewardIndex(uint256 value) public onlyOwner() {
         rewardIndex = value;
+    }
+
+    function setTreasuryAddress(address value) public onlyOwner() {
+        treasuryAddress = value;
     }
 
 

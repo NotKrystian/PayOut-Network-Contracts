@@ -433,7 +433,30 @@ contract StakingOwned is Ownable {
 
 }
 
-contract StakedPayoutERC20Token is ERC20Permit, VaultOwned, DistributorOwned, StakingOwned {
+contract TreasuryOwned is Ownable {
+  
+  address internal _treasury;
+
+  event TreasuryTransferred(address indexed newTreasury);
+
+  function setTreasury( address treasury_ ) external onlyOwner() {
+    require(treasury_ != address(0), "IA0");
+    _treasury = treasury_;
+    emit TreasuryTransferred( _treasury );
+  }
+
+  function treasury() public view returns (address) {
+    return _treasury;
+  }
+
+  modifier onlyTreasury() {
+    require( _treasury == msg.sender, "TreasuryOwned: caller is not the Treasury Contract" );
+    _;
+  }
+
+}
+
+contract StakedPayoutERC20Token is ERC20Permit, VaultOwned, DistributorOwned, StakingOwned, TreasuryOwned {
 
     using LowGasSafeMath for uint256;
 
@@ -449,6 +472,10 @@ contract StakedPayoutERC20Token is ERC20Permit, VaultOwned, DistributorOwned, St
     }
 
     function distributorMint(address account_, uint256 amount_) external onlyDistributor() {
+        _mint(account_, amount_);
+    }
+
+    function treasuryMint(address account_, uint256 amount_) external onlyTreasury() {
         _mint(account_, amount_);
     }
 

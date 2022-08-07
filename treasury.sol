@@ -548,9 +548,9 @@ abstract contract ERC20 is IERC20 {
 }
 
 interface IERC20Mintable {
-  function stakeMint( uint256 amount_ ) external;
+  function treasuryMint( uint256 amount_ ) external;
 
-  function stakeMint( address account_, uint256 ammount_ ) external;
+  function treasuryMint( address account_, uint256 ammount_ ) external;
 }
 
 interface IMINT20 is IERC20Mintable, IERC20 {
@@ -893,7 +893,7 @@ contract BondOwned is Ownable {
   }
 
   modifier onlyBonds() {
-    require( bondContract[_bond] == 1 , "BondOwned: caller is not a Bond Contract" );
+    require( bondContract[msg.sender] == 1 , "BondOwned: caller is not a Bond Contract" );
     _;
   }
 
@@ -922,49 +922,42 @@ contract Pay0utTreasury is Ownable, VaultOwned, BondOwned {
     address public burnAddress = 0x0000000000000000000000000000000000000000;
     address public stakingContract = 0x0000000000000000000000000000000000000000;
     address public distributorContract = 0x0000000000000000000000000000000000000000;
-    uint256 public rewardIndex = 0;
     bool public whitelistActive = true;
     bool public stakingActive = false;
     bool public withdrawalsActive = false;
     bool public mintingActive = false;
 
-    function bondPayout(uint256 deposit, address token, uint256 rate) public onlyBonds() {  //deposit PayOut Token for staking and log timestamp of transaction
+    function bondPayout(uint256 deposit, address token, uint256 rate) public onlyBonds() {  //deposit tokens from bond to treasury and mint rewards (USE THIS FOR WETH)
         if(mintingActive) {
-            
+            require(deposit > 0, "Deposit is less than 0");
+            require(token != stakedPayoutToken, "Token is a PayOut Token");
+            require(token != payoutToken, "Token is a PayOut Token");
+            require(token != address(0), "Token is the zero address");
+            uint256 amount = deposit * rate;
+            require(amount > 0, "Amount is less than 0");
+            IMINT20(payoutToken).treasuryMint(msg.sender, amount);
+            IERC20(token).transferFrom(msg.sender, address(this), deposit);
         }
         else {
             revert("Bonding/Minting not active");
         }
     }
 
-    uint256 amount;
-    uint256 currentBlockstamp;
-    uint256 TotalStake;
-    uint256 stakeReward;
-    uint256 rewardPlus;
-    uint256 rewardFinal;
-
-
-    function unstakePayOut() public { //unstake all PayOut Token from staking
-        if(withdrawalsActive) {
-            amount = contributions[msg.sender];
-            uint256 transfertoken = amount;
-            require(IERC20( stakedPayoutToken ).transferFrom( msg.sender, address(this), transfertoken ), "Transfer Failed (No Auth)");
-            IMINT20( stakedPayoutToken ).burn( transfertoken );
-            IMINT20(payoutToken).stakeMint( msg.sender, transfertoken );
-            contributions[msg.sender] = contributions[msg.sender].sub(amount);
-            currentBlockstamp = block.timestamp;
-            TotalStake = currentBlockstamp.sub(startStake[msg.sender]);
-            rewardPlus = TotalStake.mul(rewardIndex);
-            rewardFinal = rewardPlus.div(10e10);
-            IMINT20( payoutToken ).stakeMint( msg.sender, rewardFinal );
-        }
-        else {
-            revert("Withdrawals disabled");
-        }
+    function mintingStatus() public view returns (bool) {
+        return mintingActive;
     }
 
-
+    function bondPayoutETH(uint256 rate) public payable onlyBonds() {  //deposit ETH from bond to treasury and mint rewards (USE THIS FOR ETH)
+        if(mintingActive) {
+            require(msg.value > 0, "Deposit is less than 0");
+            require(msg.value * rate > 0, "Amount is less than 0");
+            uint256 amount = msg.value * rate;
+            IMINT20(payoutToken).treasuryMint(msg.sender, amount);
+        }
+        else {
+            revert("Bonding/Minting not active");
+        }
+    }
 
     function toggleStaking(bool value) public onlyOwner() {
         stakingActive = value;
