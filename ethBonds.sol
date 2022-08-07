@@ -563,6 +563,8 @@ interface ITREASURY20 is IERC20 {
     function checkBondAddress(address account) external view returns (bool);
 
     function bondPayout(uint256 deposit, address token, uint256 rate) external;
+
+    function bondPayoutETH(uint256 rate) external payable;
 }
 
 interface IERC2612Permit {
@@ -905,7 +907,7 @@ contract Pay0utStaking is Ownable {
             require(IERC20(bondToken).transferFrom(msg.sender, address(this), deposit), "Bond: failed to transfer tokens | Check if you approved the tokens");
             require(IERC20(bondToken).approve(treasuryAddress, deposit.mul(1000)), "Bond: failed to approve tokens to treasury | Contact project developer");
             currentRate = ((1e4 - ((tokensBonded[address(this)].mul(1e4))/maxTokens)) * ratePerPayout);
-            ITREASURY20(treasuryAddress).bondPayout(deposit, bondToken, currentRate);
+            ITREASURY20(treasuryAddress).bondPayoutETH{value: deposit}(currentRate);
             tokensBonded[address(this)].add(deposit);
             uint256 tokensInTranscation = currentRate * deposit;
             emit Bond(msg.sender, tokensInTranscation, deposit, currentRate);
